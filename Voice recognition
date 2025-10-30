@@ -1,0 +1,81 @@
+import sys
+import pyaudio
+import wave
+from aip import AipSpeech
+
+wave_output_file = 'input1.wav'
+
+# Record the audio and save the audio file.
+def get_audio():
+    aa = str(input("Ready to start recording？   （y/n）"))
+    if aa == str("y"):
+        print("Please finish speaking within 5 seconds: ")
+        chunk = 512 # Number of frames in the audio buffer
+        output_format = pyaudio.paInt16 # Audio sample format
+        channels = 1 # Audio channels
+        rate = 16000 # Sampling frequency
+        record_seconds = 5 # Duration of recording (in seconds)
+        p = pyaudio.PyAudio()   # Initialize PyAudio object for audio I/O
+        # Open audio input stream
+        stream = p.open(format=output_format,
+                        channels=channels,
+                        rate=rate,
+                        input=True,
+                        frames_per_buffer=chunk)
+        frames = []  # List to store recorded audio frames
+        # Read audio data in chunks and accumulate frames
+        for i in range(0, int(rate * record_seconds / chunk)):
+            data = stream.read(chunk)
+            frames.append(data)
+        # Stop and close the audio stream
+        stream.stop_stream()
+        stream.close()
+        # Terminate the PyAudio session
+        p.terminate()
+
+        # Save recorded frames to a WAV file
+        wf = wave.open(wave_output_file, 'wb')
+        wf.setnchannels(channels)
+        wf.setsampwidth(p.get_sample_size(output_format))
+        wf.setframerate(rate)
+        wf.writeframes(b''.join(frames))
+        wf.close()
+
+    elif aa == str("q"):
+        exit()
+    else:
+        print("Speech input failed. Please try again.")
+
+
+def get_file_content(filePath):
+    with open(filePath, 'rb') as fp:
+        return fp.read()
+
+
+def speech_recognition():
+    ############################ Get audio in a real-time way #################################
+    get_audio()
+
+    ############################ Read the recorded audio file content ##########################
+    audio_data = get_file_content(wave_output_file)
+
+    ############################ Initialize Baidu AipSpeech client ############################
+    APP_ID = '120252691'
+    API_KEY = 'u3h1QZX5dwBftXjPeO0ixIlJ'
+    SECRET_KEY = 'BiSG7slA4CFpEPTmVK2p5fikyGBDPsm5'
+    client = AipSpeech(APP_ID, API_KEY, SECRET_KEY)
+
+    ############################ Speech -> text ###############################################
+    result = client.asr(audio_data,'pcm', 16000, {'dev_pid': 1737})
+
+    ############################ Parse and return the result ##################################
+    if result['err_no'] == 0:
+        text = result['result'][0]
+        print(text)
+        return text
+    else:
+        print('Error:', result['err_msg'])
+        return False
+
+if __name__ == "__main__":
+    speech_recognition()
